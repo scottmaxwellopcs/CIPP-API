@@ -10,9 +10,11 @@ function Get-CIPPTimerFunctions {
 
     # Check running nodes
     $VersionTable = Get-CIPPTable -tablename 'Version'
-    $Nodes = Get-CIPPAzDataTableEntity @VersionTable -Filter "PartitionKey eq 'Version' and RowKey ne 'Version'" | Where-Object { $_.RowKey -match '-' }
-    $AvailableNodes = $Nodes.RowKey | ForEach-Object { ($_ -split '-')[1] }
+    $Nodes = Get-CIPPAzDataTableEntity @VersionTable -Filter "PartitionKey eq 'Version' and RowKey ne 'Version' and RowKey ne 'frontend'"
+
     $FunctionName = $env:WEBSITE_SITE_NAME
+    $MainFunctionVersion = ($Nodes | Where-Object { $_.RowKey -eq $FunctionName }).Version
+    $AvailableNodes = $Nodes.RowKey | Where-Object { $_.RowKey -match '-' -and $_.Version -eq $MainFunctionVersion } | ForEach-Object { ($_ -split '-')[1] }
 
     # Get node name
     if ($FunctionName -match '-') {
@@ -22,7 +24,7 @@ function Get-CIPPTimerFunctions {
     }
 
     $RunOnProcessor = $true
-    if ($Config -and $Config.state -eq $true) {
+    if ($Config -and $Config.state -eq $true -and $AvailableNodes.Count -gt 0) {
         if ($env:CIPP_PROCESSOR -ne 'true') {
             $RunOnProcessor = $false
         }
@@ -133,12 +135,13 @@ function Get-CIPPTimerFunctions {
                     Parameters         = $Orchestrator.Parameters ?? @{}
                     Cron               = $CronString
                     NextOccurrence     = $NextOccurrence.ToUniversalTime()
-                    LastOccurrence     = $Status.LastOccurrence.DateTime
+                    LastOccurrence     = $Status.LastOccurrence
                     Status             = $Status.Status
                     OrchestratorId     = $Status.OrchestratorId
                     RunOnProcessor     = $Orchestrator.RunOnProcessor
                     IsSystem           = $Orchestrator.IsSystem ?? $false
                     PreferredProcessor = $Orchestrator.PreferredProcessor ?? ''
+                    ErrorMsg           = $Status.ErrorMsg ?? ''
                 }
             }
         } else {
