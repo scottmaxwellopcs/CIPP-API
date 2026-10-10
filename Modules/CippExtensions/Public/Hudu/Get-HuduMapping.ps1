@@ -17,13 +17,14 @@ function Get-HuduMapping {
                 TenantDomain    = $Tenant.defaultDomainName
                 IntegrationId   = $Mapping.IntegrationId
                 IntegrationName = $Mapping.IntegrationName
+                SyncPasswords   = $Mapping.SyncPasswords -ne $false
             }
         }
     }
     $Tenants = Get-Tenants -IncludeErrors
     $Table = Get-CIPPTable -TableName Extensionsconfig
     try {
-        $Configuration = ((Get-CIPPAzDataTableEntity @Table).config | ConvertFrom-Json -ea stop).Hudu
+        $Configuration = (Get-CIPPAzDataTableEntity @Table).config | ConvertFrom-Json -ea stop
 
         Connect-HuduAPI -configuration $Configuration
         $HuduCompanies = Get-HuduCompanies
@@ -46,7 +47,7 @@ function Get-HuduMapping {
     }
     $MappingObj = [PSCustomObject]@{
         Companies = @($HuduCompanies)
-        Mappings  = $Mappings
+        Mappings  = @($Mappings)
     }
 
     return $MappingObj
